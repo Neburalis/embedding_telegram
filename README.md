@@ -17,7 +17,7 @@ Key features:
 
 ## Screenshot
 
-![Visualization Example](screenshot.png)
+![Visualization Example](images/screenshot.png)
 
 ## Installation
 
@@ -47,6 +47,8 @@ The application provides two clustering algorithms:
 
 DBSCAN groups points that are close to each other and marks points in low-density regions as noise.
 
+![DBSCAN Clustering](images/DBSCAN.png)
+
 Parameters:
 - **EPS (Epsilon)** - maximum distance between two points to be considered neighbors
   - Smaller values create more small clusters
@@ -60,6 +62,8 @@ Parameters:
 ### K-means
 
 K-means divides data into K clusters, where each point belongs to the cluster with the nearest mean.
+
+![K-means Clustering](images/K-means.png)
 
 Parameters:
 - **Number of Clusters** - number of clusters to divide the data into
