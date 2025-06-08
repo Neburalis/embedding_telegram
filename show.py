@@ -31,6 +31,19 @@ processing_status = {
 upload_layout = html.Div([
     html.H1("Upload Messages File", style={'textAlign': 'center'}),
     html.Div([
+        html.Div([
+            html.Label("Embedding Generation Method:"),
+            dcc.RadioItems(
+                id='embedding-method',
+                options=[
+                    {'label': 'Generate new embeddings', 'value': 'generate'},
+                    {'label': 'Use existing embeddings.json', 'value': 'existing'}
+                ],
+                value='generate',
+                labelStyle={'display': 'inline-block', 'margin': '10px'}
+            ),
+        ], style={'width': '100%', 'textAlign': 'center', 'margin': '10px'}),
+        
         dcc.Upload(
             id='upload-data',
             children=html.Div([
@@ -299,10 +312,11 @@ def process_file_in_background(input_file, output_file):
      Output('progress-container', 'style'),
      Output('progress-interval', 'disabled')],
     [Input('upload-data', 'contents'),
-     Input('progress-interval', 'n_intervals')],
+     Input('progress-interval', 'n_intervals'),
+     Input('embedding-method', 'value')],
     [State('upload-data', 'filename')]
 )
-def update_output(contents, n_intervals, filename):
+def update_output(contents, n_intervals, embedding_method, filename):
     global processing_status
     
     if contents is None:
@@ -317,14 +331,34 @@ def update_output(contents, n_intervals, filename):
         with open('result.json', 'wb') as f:
             f.write(decoded)
         
-        # Start processing in background
-        thread = threading.Thread(
-            target=process_file_in_background,
-            args=('result.json', 'embeddings.json')
-        )
-        thread.start()
-        
-        return html.Div(), {'display': 'block'}, False
+        if embedding_method == 'generate':
+            # Start processing in background
+            thread = threading.Thread(
+                target=process_file_in_background,
+                args=('result.json', 'embeddings.json')
+            )
+            thread.start()
+            return html.Div(), {'display': 'block'}, False
+        else:
+            # Check if embeddings.json exists
+            if os.path.exists('embeddings.json'):
+                return (
+                    html.Div([
+                        html.H3("Using existing embeddings file!"),
+                        html.A("Go to visualization", href="/visualize")
+                    ]),
+                    {'display': 'none'},
+                    True
+                )
+            else:
+                return (
+                    html.Div([
+                        html.H3("Error: embeddings.json not found!"),
+                        html.P("Please generate embeddings first or ensure embeddings.json exists in the project directory.")
+                    ]),
+                    {'display': 'none'},
+                    True
+                )
     
     # Update progress
     if processing_status['is_processing']:
