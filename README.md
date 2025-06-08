@@ -1,5 +1,7 @@
 # embedding_telegram
 
+[Русская версия](README_RU.md) | [English version](README.md)
+
 ## Project Description
 
 This project is a visualization tool for Telegram chat messages that uses machine learning to analyze and cluster conversations. It processes your Telegram chat export and creates an interactive visualization where similar messages are grouped together.
@@ -17,62 +19,62 @@ Key features:
 
 ![Visualization Example](screenshot.png)
 
-## How to install 
+## Installation
 
-1) Вам необходимо установить [uv](https://github.com/astral-sh/uv) и [python](https://www.python.org/)
-2) Скачайте и распакуйте репозиторий на диск
-3) Выполните следующие команды: `uv venv`, для macOS/Linux `source .venv/bin/activate`, `uv sync`
-4) Для запуска embeding модели я использую lm studio и модель `granite-embedding-278m-multilingual-GGUF/granite-embedding-278m-multilingual-Q8_0.gguf`
-4) Запустите `python3 show.py`
-5) Откройте в браузере `localhost:8052`
-6) Далее вам необходимо экспортировать переписку telegram в "машиночитаемом json" и загрузить ее в браузер
-7) После нажимайте `Go to visualization`
-8) В верхней части есть параметры кластеризации, ниже есть их описание 
+1) Install [uv](https://github.com/astral-sh/uv) and [python](https://www.python.org/)
+2) Download and extract the repository
+3) Run the following commands: `uv venv`, for macOS/Linux `source .venv/bin/activate`, `uv sync`
+4) For running the embedding model, I use lm studio and the model `granite-embedding-278m-multilingual-GGUF/granite-embedding-278m-multilingual-Q8_0.gguf`
+5) Run `python3 show.py`
+6) Open `localhost:8052` in your browser
+7) Export your Telegram chat in "machine-readable JSON" format and upload it to the browser
+8) Click `Go to visualization`
+9) Clustering parameters are available at the top, see their description below
 
-## Опции генерации эмбедингов
+## Embedding Generation Options
 
-При загрузке файла у вас есть два варианта:
-1. **Generate new embeddings** - генерирует новые эмбединги для загруженного файла (может занять некоторое время)
-2. **Use existing embeddings.json** - использует уже существующий файл embeddings.json (если он есть в директории проекта)
+When uploading a file, you have two options:
+1. **Generate new embeddings** - generates new embeddings for the uploaded file (may take some time)
+2. **Use existing embeddings.json** - uses an existing embeddings.json file (if it exists in the project directory)
 
-Если вы выбрали второй вариант, убедитесь что файл embeddings.json существует в директории проекта.
+If you choose the second option, make sure the embeddings.json file exists in the project directory.
 
-## Алгоритмы кластеризации
+## Clustering Algorithms
 
-В приложении доступны два алгоритма кластеризации:
+The application provides two clustering algorithms:
 
 ### DBSCAN (Density-Based Spatial Clustering of Applications with Noise)
 
-DBSCAN группирует точки, которые находятся близко друг к другу, и помечает как шум точки, которые находятся в областях с низкой плотностью.
+DBSCAN groups points that are close to each other and marks points in low-density regions as noise.
 
-Параметры:
-- **EPS (Epsilon)** - максимальное расстояние между двумя точками, чтобы они считались соседями. 
-  - Меньшие значения создают больше маленьких кластеров
-  - Большие значения создают меньше, но более крупных кластеров
-  - Диапазон: 0.1 - 3.0
-- **Min Samples** - минимальное количество точек, необходимое для формирования кластера
-  - Меньшие значения создают больше кластеров
-  - Большие значения создают более устойчивые кластеры
-  - Диапазон: 1 - 20
+Parameters:
+- **EPS (Epsilon)** - maximum distance between two points to be considered neighbors
+  - Smaller values create more small clusters
+  - Larger values create fewer but larger clusters
+  - Range: 0.1 - 3.0
+- **Min Samples** - minimum number of points required to form a cluster
+  - Smaller values create more clusters
+  - Larger values create more stable clusters
+  - Range: 1 - 20
 
 ### K-means
 
-K-means делит данные на K кластеров, где каждая точка относится к кластеру с ближайшим средним значением.
+K-means divides data into K clusters, where each point belongs to the cluster with the nearest mean.
 
-Параметры:
-- **Number of Clusters** - количество кластеров, на которые нужно разделить данные
-  - Меньшие значения создают более общие группы
-  - Большие значения создают более специфичные группы
-  - Диапазон: 2 - 200
+Parameters:
+- **Number of Clusters** - number of clusters to divide the data into
+  - Smaller values create more general groups
+  - Larger values create more specific groups
+  - Range: 2 - 200
 
-### Рекомендации по выбору алгоритма
+### Algorithm Selection Guidelines
 
-- Используйте **DBSCAN**, если:
-  - Вы не знаете заранее количество кластеров
-  - Хотите найти кластеры произвольной формы
-  - Хотите автоматически определять выбросы (шум)
+- Use **DBSCAN** if:
+  - You don't know the number of clusters in advance
+  - You want to find clusters of arbitrary shape
+  - You want to automatically detect outliers (noise)
 
-- Используйте **K-means**, если:
-  - Вы знаете примерное количество кластеров
-  - Ожидаете, что кластеры будут примерно одинакового размера
-  - Хотите более предсказуемый результат
+- Use **K-means** if:
+  - You know the approximate number of clusters
+  - You expect clusters to be roughly equal in size
+  - You want more predictable results
