@@ -547,4 +547,4 @@ for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGTSTP):
 
 if __name__ == "__main__":
     # выключаем перезагрузчик, чтобы ловить сигналы в одном процессе
-    app.run_server(debug=False, use_reloader=False, port=8052)
+    app.run(debug=False, use_reloader=False, port=8052)

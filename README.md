@@ -14,6 +14,7 @@ Key features:
 - Allows real-time adjustment of clustering parameters
 - Shows message content on hover
 - Option to generate new embeddings or use existing ones
+- Filter messages by sender for convenient group chat analysis
 
 ## Screenshot
 
