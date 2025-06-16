@@ -5,15 +5,11 @@ from sklearn.cluster import DBSCAN, KMeans
 import plotly.express as px
 import pandas as pd
 import dash
-from dash import dcc, html, callback
+from dash import dcc, html
 from dash.dependencies import Input, Output, State
-import plotly.graph_objects as go
 import os
-from main import process_messages
 import base64
-import io
 import threading
-import time
 import signal
 import sys
 
