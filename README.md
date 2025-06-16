@@ -23,13 +23,17 @@ Key features:
 
 1) Install [uv](https://github.com/astral-sh/uv) and [python](https://www.python.org/)
 2) Download and extract the repository
-3) Run the following commands: `uv venv`, for macOS/Linux `source .venv/bin/activate`, `uv sync`
-4) For running the embedding model, I use lm studio and the model `granite-embedding-278m-multilingual-GGUF/granite-embedding-278m-multilingual-Q8_0.gguf`
-5) Run `python3 show.py`
-6) Open `localhost:8052` in your browser
-7) Export your Telegram chat in "machine-readable JSON" format and upload it to the browser
-8) Click `Go to visualization`
-9) Clustering parameters are available at the top, see their description below
+3) Run the following commands:
+   - `uv venv`
+   - for macOS/Linux `source .venv/bin/activate`
+   - for Windows `.venv\Scripts\activate` (in PowerShell)
+   - `uv sync`
+5) For running the embedding model, I use lm studio and the model `granite-embedding-278m-multilingual-GGUF/granite-embedding-278m-multilingual-Q8_0.gguf`
+6) Run `python3 show.py`
+7) Open `localhost:8052` in your browser
+8) Export your Telegram chat in "machine-readable JSON" format and upload it to the browser
+9) Click `Go to visualization`
+10) Clustering parameters are available at the top, see their description below
 
 ## Embedding Generation Options
 
