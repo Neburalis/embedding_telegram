@@ -14,6 +14,8 @@ import base64
 import io
 import threading
 import time
+import signal
+import sys
 
 # Initialize the Dash app
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
@@ -80,8 +82,11 @@ upload_layout = html.Div([
 # Define the layout for the visualization page
 def create_visualization_layout(embeddings_file: str, messages_file: str):
     # Load and process data
-    embeddings, ids, texts = load_data(embeddings_file, messages_file)
-    embeddings, ids, texts = remove_duplicates(embeddings, ids, texts)
+    embeddings, ids, texts, from_fields = load_data(embeddings_file, messages_file)
+    embeddings, ids, texts, from_fields = remove_duplicates(embeddings, ids, texts, from_fields)
+    
+    # Get unique senders for the dropdown
+    unique_senders = sorted(list(set(from_fields)))
     
     # Project embeddings to 2D using t-SNE
     tsne = TSNE(n_components=2, random_state=42)
@@ -91,6 +96,17 @@ def create_visualization_layout(embeddings_file: str, messages_file: str):
         html.H1("Message Embeddings Visualization", style={'textAlign': 'center'}),
         
         html.Div([
+            html.Div([
+                html.Label("Filter by Sender:"),
+                dcc.Dropdown(
+                    id='sender-filter',
+                    options=[{'label': 'All Senders', 'value': 'all'}] + 
+                            [{'label': sender, 'value': sender} for sender in unique_senders],
+                    value='all',
+                    style={'width': '100%', 'margin': '10px'}
+                ),
+            ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
+            
             html.Div([
                 html.Label("Clustering Algorithm:"),
                 dcc.RadioItems(
@@ -102,48 +118,48 @@ def create_visualization_layout(embeddings_file: str, messages_file: str):
                     value='DBSCAN',
                     labelStyle={'display': 'inline-block', 'margin': '10px'}
                 ),
-            ], style={'width': '100%', 'textAlign': 'center', 'margin': '10px'}),
+            ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
+        ], style={'width': '100%', 'textAlign': 'center'}),
+        
+        html.Div([
+            html.Div([
+                html.Label("EPS:"),
+                dcc.Slider(
+                    id='eps-slider',
+                    min=0.1,
+                    max=3.0,
+                    step=0.1,
+                    value=1.6,
+                    marks={i/10: str(i/10) for i in range(1, 31, 2)}
+                ),
+            ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
             
             html.Div([
-                html.Div([
-                    html.Label("EPS:"),
-                    dcc.Slider(
-                        id='eps-slider',
-                        min=0.1,
-                        max=3.0,
-                        step=0.1,
-                        value=1.6,
-                        marks={i/10: str(i/10) for i in range(1, 31, 2)}
-                    ),
-                ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
-                
-                html.Div([
-                    html.Label("Min Samples:"),
-                    dcc.Slider(
-                        id='min-samples-slider',
-                        min=1,
-                        max=20,
-                        step=1,
-                        value=10,
-                        marks={i: str(i) for i in range(1, 21, 2)}
-                    ),
-                ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
-            ], id='dbscan-controls'),
-            
+                html.Label("Min Samples:"),
+                dcc.Slider(
+                    id='min-samples-slider',
+                    min=1,
+                    max=20,
+                    step=1,
+                    value=10,
+                    marks={i: str(i) for i in range(1, 21, 2)}
+                ),
+            ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
+        ], id='dbscan-controls'),
+        
+        html.Div([
             html.Div([
-                html.Div([
-                    html.Label("Number of Clusters:"),
-                    dcc.Slider(
-                        id='n-clusters-slider',
-                        min=2,
-                        max=200,
-                        step=1,
-                        value=5,
-                        marks={i: str(i) for i in range(2, 201, 20)}
-                    ),
-                ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
-            ], id='kmeans-controls', style={'display': 'none'}),
-        ]),
+                html.Label("Number of Clusters:"),
+                dcc.Slider(
+                    id='n-clusters-slider',
+                    min=2,
+                    max=200,
+                    step=1,
+                    value=5,
+                    marks={i: str(i) for i in range(2, 201, 20)}
+                ),
+            ], style={'width': '45%', 'display': 'inline-block', 'margin': '10px'}),
+        ], id='kmeans-controls', style={'display': 'none'}),
         
         html.Div(id='clustering-stats', style={'textAlign': 'center', 'margin': '10px'}),
         
@@ -155,7 +171,8 @@ def create_visualization_layout(embeddings_file: str, messages_file: str):
         # Store the processed data
         dcc.Store(id='embeddings-2d', data=embeddings_2d.tolist()),
         dcc.Store(id='ids', data=ids),
-        dcc.Store(id='texts', data=texts)
+        dcc.Store(id='texts', data=texts),
+        dcc.Store(id='from-fields', data=from_fields)
     ])
 
 # Define the app layout
@@ -176,7 +193,10 @@ def load_data(embeddings_file: str, messages_file: str):
     
     # Create message_id to text mapping
     message_map = {
-        msg['id']: msg['text']
+        msg['id']: {
+            'text': msg['text'],
+            'from': msg.get('from', 'Unknown')  # Get 'from' field with default 'Unknown'
+        }
         for msg in chat_data['messages']
         if msg['type'] == 'message' and msg['text']
     }
@@ -185,17 +205,19 @@ def load_data(embeddings_file: str, messages_file: str):
     ids = []
     embeddings = []
     texts = []
+    from_fields = []
     
     for item in embeddings_data:
         msg_id = item['id']
         if msg_id in message_map:
             ids.append(msg_id)
             embeddings.append(item['embedding'])
-            texts.append(message_map[msg_id])
+            texts.append(message_map[msg_id]['text'])
+            from_fields.append(message_map[msg_id]['from'])
     
-    return np.array(embeddings), ids, texts
+    return np.array(embeddings), ids, texts, from_fields
 
-def remove_duplicates(embeddings, ids, texts):
+def remove_duplicates(embeddings, ids, texts, from_fields):
     """Remove messages with identical embeddings."""
     # Convert embeddings to list of tuples for hashing
     embedding_tuples = [tuple(emb) for emb in embeddings]
@@ -207,6 +229,7 @@ def remove_duplicates(embeddings, ids, texts):
             unique_data[emb_tuple] = {
                 'id': ids[i],
                 'text': texts[i],
+                'from': from_fields[i],
                 'embedding': embeddings[i]
             }
     
@@ -214,8 +237,9 @@ def remove_duplicates(embeddings, ids, texts):
     unique_embeddings = np.array([data['embedding'] for data in unique_data.values()])
     unique_ids = [data['id'] for data in unique_data.values()]
     unique_texts = [data['text'] for data in unique_data.values()]
+    unique_from_fields = [data['from'] for data in unique_data.values()]
     
-    return unique_embeddings, unique_ids, unique_texts
+    return unique_embeddings, unique_ids, unique_texts, unique_from_fields
 
 def cluster_embeddings(embeddings_2d, algorithm, eps, min_samples, n_clusters):
     """Cluster 2D embeddings using selected algorithm."""
@@ -429,18 +453,15 @@ def toggle_controls(algorithm):
      Input('n-clusters-slider', 'value'),
      Input('embeddings-2d', 'data'),
      Input('ids', 'data'),
-     Input('texts', 'data')]
+     Input('texts', 'data'),
+     Input('from-fields', 'data'),
+     Input('sender-filter', 'value')]
 )
-def update_graph(algorithm, eps, min_samples, n_clusters, embeddings_2d, ids, texts):
+def update_graph(algorithm, eps, min_samples, n_clusters, embeddings_2d, ids, texts, from_fields, selected_sender):
     if not embeddings_2d:
         return {}, html.Div()
     
     embeddings_2d = np.array(embeddings_2d)
-    
-    # Perform clustering with current parameters
-    labels, n_clusters, n_noise, n_clustered = cluster_embeddings(
-        embeddings_2d, algorithm, eps, min_samples, n_clusters
-    )
     
     # Create DataFrame for plotting
     df = pd.DataFrame({
@@ -448,8 +469,20 @@ def update_graph(algorithm, eps, min_samples, n_clusters, embeddings_2d, ids, te
         'y': embeddings_2d[:, 1],
         'id': ids,
         'text': texts,
-        'cluster': [f'Cluster {l}' if l != -1 else 'Noise' for l in labels]
+        'from': from_fields
     })
+    
+    # Filter by selected sender if not 'all'
+    if selected_sender != 'all':
+        df = df[df['from'] == selected_sender]
+        embeddings_2d = embeddings_2d[df.index]
+    
+    # Perform clustering with current parameters
+    labels, n_clusters, n_noise, n_clustered = cluster_embeddings(
+        embeddings_2d, algorithm, eps, min_samples, n_clusters
+    )
+    
+    df['cluster'] = [f'Cluster {l}' if l != -1 else 'Noise' for l in labels]
     
     # Create figure
     fig = px.scatter(
@@ -457,7 +490,7 @@ def update_graph(algorithm, eps, min_samples, n_clusters, embeddings_2d, ids, te
         x='x',
         y='y',
         color='cluster',
-        hover_data=['id', 'text'],
+        hover_data=['id', 'text', 'from'],
         title='Message Embeddings Visualization with Clusters'
     )
     
@@ -488,7 +521,7 @@ def update_graph(algorithm, eps, min_samples, n_clusters, embeddings_2d, ids, te
     
     # Remove hover coordinates
     fig.update_traces(
-        hovertemplate="<b>ID:</b> %{customdata[0]}<br><b>Text:</b> %{customdata[1]}<extra></extra>"
+        hovertemplate="<b>ID:</b> %{customdata[0]}<br><b>From:</b> %{customdata[2]}<br><b>Text:</b> %{customdata[1]}<extra></extra>"
     )
     
     # Create statistics text
@@ -497,10 +530,21 @@ def update_graph(algorithm, eps, min_samples, n_clusters, embeddings_2d, ids, te
         html.P(f"Algorithm: {algorithm}"),
         html.P(f"Number of clusters: {n_clusters}"),
         html.P(f"Number of noise points: {n_noise}"),
-        html.P(f"Number of clustered points: {n_clustered}")
+        html.P(f"Number of clustered points: {n_clustered}"),
+        html.P(f"Filtered by sender: {selected_sender if selected_sender != 'all' else 'All senders'}")
     ])
     
     return fig, stats
 
+def _shutdown(signum, frame):
+    print(f"Получен сигнал {signum!r}, завершаю работу...")
+    # здесь можно добавить любую логику очистки, если нужно
+    sys.exit(0)
+
+# Register signal handlers
+for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGTSTP):
+    signal.signal(sig, _shutdown)
+
 if __name__ == "__main__":
-    app.run(debug=True, port=8052)
+    # выключаем перезагрузчик, чтобы ловить сигналы в одном процессе
+    app.run_server(debug=False, use_reloader=False, port=8052)
